@@ -9,9 +9,13 @@
  */
 class CoPHP
 {
+	const STATUS_HANGUP = 0;
+	const STATUS_RUNING = 0;
+	const STATUS_SUSPEND = 0;
+
+	public $status = 0;
 	public function suspend(){}
 	public function run(){}
-	public function record(){}
 
 	/**
 	 * @param $callable

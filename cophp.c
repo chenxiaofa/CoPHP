@@ -34,21 +34,58 @@ static zend_execute_data *cache_execute_data;
 
 */
 zend_class_entry *cophp_ce;
+
+
+/**  CoPHP Method
+*/
+
+ZEND_BEGIN_ARG_INFO_EX(cophp_ctor_args_info, 0, 0, 1)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
+
 void cophp_gdb_break()
 {
 }
 
 
-ZEND_METHOD(cophp,record)
+ZEND_METHOD(cophp,create)
 {
 	cache_execute_data = execute_data->prev_execute_data;
 	cache_opline = cache_execute_data->opline;
 }
 
 
+ZEND_METHOD(cophp,__construct)
+{
+	zval *callback;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &callback) == FAILURE)
+    {
+        return;
+    }
+
+	zval *this = getThis();
+
+	zend_update_property(cophp_ce ,this, "callable" ,strlen("callable"), callback);
+
+		
+}
+
+
+
 ZEND_METHOD(cophp,run)
 {
+	zval *this = getThis();
+	zval rv;
+	zval *callable;
+	
+	callable = zend_read_property(cophp_ce,this,"callable" ,strlen("callable"),1,&rv);
 
+	ZVAL_NULL(&rv);
+
+	call_user_function_ex(EG(function_table),NULL,callable,&rv,0, NULL, 0, NULL TSRMLS_CC);
+
+	RETURN_ZVAL(&rv,0,0);
 }
 
 
@@ -73,9 +110,11 @@ void zim_cophp_suspend(zend_execute_data *ex, zval *return_value)
 /* CoPHP class method entry
 */
 static zend_function_entry cophp_method[] = {
-    ZEND_ME(cophp,    run	,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-	ZEND_ME(cophp,	  suspend		,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-	ZEND_ME(cophp,    record 		,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+//    ZEND_ME(cophp,    run	,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+//	ZEND_ME(cophp,	  suspend		,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+//	ZEND_ME(cophp,    record 		,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	ZEND_ME(cophp,	  __construct	,  cophp_ctor_args_info,   ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
+	ZEND_ME(cophp,    run			,  NULL,   ZEND_ACC_PUBLIC)
 
     { NULL, NULL, NULL }
 };
@@ -148,8 +187,15 @@ PHP_MINIT_FUNCTION(cophp)
 	zend_class_entry ce;
     INIT_CLASS_ENTRY(ce, "CoPHP",cophp_method);
     cophp_ce = zend_register_internal_class(&ce TSRMLS_CC);
-    zend_declare_property_null(cophp_ce, "public_var", strlen("public_var"), ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_stringl(cophp_ce, "private_var", strlen("private_var"),"string",strlen("string"), ZEND_ACC_PRIVATE TSRMLS_CC);
+
+	zend_declare_class_constant_long(cophp_ce, "STATUS_HANGUP", strlen("STATUS_HANGUP"),0 TSRMLS_CC);
+	zend_declare_class_constant_long(cophp_ce, "STATUS_RUNING", strlen("STATUS_RUNING"),1 TSRMLS_CC);
+	zend_declare_class_constant_long(cophp_ce, "STATUS_SUSPEND", strlen("STATUS_SUSPEND"),2 TSRMLS_CC);
+
+	
+    zend_declare_property_long(cophp_ce, "status", strlen("status"),0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(cophp_ce, "callable", strlen("callable"), ZEND_ACC_PUBLIC TSRMLS_CC);
+
 	return SUCCESS;
 }
 /* }}} */
