@@ -6,37 +6,62 @@
  * Date: 2016/6/12
  * Time: 11:46
  */
-//function a()
-//{
-//	$i = 0;
-//	CoPHP::record();
-//	echo $i++,"\n";
-//	c();
-//	echo 7;
-//}
-//function b()
-//{
-//	$a=[];
-//}
-//function c()
-//{
-//	$i = 0;
-//	echo "\t",$i++,"\n";
-//	CoPHP::suspend();
-//}
-//a();
-//
+//include 'php/CoThread.php';
 
-
-$cophp = new CoPHP(
-	function()
+class ct1 extends CoThread
+{
+	function test()
 	{
-		echo 123;
-		return 'called';
+
 	}
-);
+	protected function run()
+	{
+		print_r(debug_backtrace());
+		print_r($this);
+		echo 'ct:1-1',"\n";
+		echo 'ct:1-3',"\n";
+		$this->status = CoThread::STATUS_DEAD;
+		print_r($this);
+	}
+}
+//class ct2 extends CoThread
+//{
+//
+//	public function run()
+//	{
+//		echo 'ct:2-2',"\n";
+//		$this->suspend();
+//		echo 'ct:2-4',"\n";
+//		$this->status = CoThread::STATUS_DEAD;
+//	}
+//}
+//function run()
+//{
+//
+//	echo "main run","\n";
+//}
+//call_user_func("run");
+$ct = (new ct1());
 
-echo "\n";
+$ret = $ct->start();
+echo 'main',"\n";
+debug_zval_dump($ret);
 
-debug_zval_dump($cophp->callable);
-debug_zval_dump($cophp->run());
+exit;
+
+$ct->resume();
+//
+//$threads = array(new ct1(),new ct2());
+//while(1)
+//{
+//	/** @var CoThread $r */
+//	foreach($threads as $k=>$r)
+//	{
+//		$r->run();
+//		if ($r->status == CoThread::STATUS_DEAD)
+//		{
+//			unset($threads[$k]);
+//		}
+//	}
+//
+//}

@@ -7,19 +7,19 @@
  * Date: 2016/6/13
  * Time: 19:07
  */
-class CoPHP
+abstract class CoThread
 {
-	const STATUS_HANGUP = 0;
-	const STATUS_RUNING = 0;
-	const STATUS_SUSPEND = 0;
+
+	const STATUS_NEW = 0;
+	const STATUS_RUNNABLE = 1;
+	const STATUS_RUNNING = 2;
+	const STATUS_SUSPEND = 3;
+	const STATUS_DEAD = 4;
 
 	public $status = 0;
-	public function suspend(){}
-	public function run(){}
+	protected function suspend(){}
+	public function start(){}
+	public function resume(){}
+	protected abstract  function run();
 
-	/**
-	 * @param $callable
-	 * @return static
-	 */
-	static function create($callable){}
 }
