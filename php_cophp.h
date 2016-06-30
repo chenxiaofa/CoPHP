@@ -38,6 +38,33 @@ extern zend_module_entry cophp_module_entry;
 #include "TSRM.h"
 #endif
 
+
+
+struct _cothread_context{
+	/* CoThread instance */
+	zval* This;
+	
+	/* The suspended execution context. */
+	zend_execute_data *execute_data;
+
+	/* The separate stack used by cothread */
+	zend_vm_stack stack;
+
+
+	/* Return value */
+	zval retval;
+	/* Variable to put sent value into */
+	//zval *send_target;
+
+
+	/* Fake execute_data for stacktraces */
+	/* zend_execute_data execute_fake; */
+
+};
+
+typedef struct _cothread_context cothread_context;
+
+
 /*
   	Declare any global variables you may need between the BEGIN
 	and END macros here:
@@ -103,7 +130,6 @@ register zend_execute_data* volatile execute_data __asm__(ZEND_VM_FP_GLOBAL_REG)
 # define LOAD_NEXT_OPLINE() ZEND_VM_INC_OPCODE()
 # define SAVE_OPLINE()
 #endif
-
 
 
 

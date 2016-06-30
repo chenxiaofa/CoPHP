@@ -10,58 +10,35 @@
 
 class ct1 extends CoThread
 {
-	function test()
-	{
-
-	}
 	protected function run()
 	{
-		print_r(debug_backtrace());
-		print_r($this);
-		echo 'ct:1-1',"\n";
-		echo 'ct:1-3',"\n";
-		$this->status = CoThread::STATUS_DEAD;
-		print_r($this);
+		usleep(10000);
+		$this->suspend();
 	}
 }
-//class ct2 extends CoThread
-//{
-//
-//	public function run()
-//	{
-//		echo 'ct:2-2',"\n";
-//		$this->suspend();
-//		echo 'ct:2-4',"\n";
-//		$this->status = CoThread::STATUS_DEAD;
-//	}
-//}
-//function run()
-//{
-//
-//	echo "main run","\n";
-//}
-//call_user_func("run");
-$ct = (new ct1());
 
-$ret = $ct->start();
-echo 'main',"\n";
-debug_zval_dump($ret);
-
-exit;
-
-$ct->resume();
-//
-//$threads = array(new ct1(),new ct2());
+while(1)
+{
+	(new ct1())->start();
+}
+//$a = array();
 //while(1)
 //{
-//	/** @var CoThread $r */
-//	foreach($threads as $k=>$r)
-//	{
-//		$r->run();
-//		if ($r->status == CoThread::STATUS_DEAD)
-//		{
-//			unset($threads[$k]);
-//		}
-//	}
+//	$a[] = new ct1();
+//	echo memory_get_usage(1),'----',$i++,"\n";
+//	if ($i == 400) break;
+//}
 //
+//foreach($a as $k=>$v)
+//{
+//	unset($a[$k]);
+//	echo memory_get_usage(1),'----',$k,"\n";
+//}
+//
+//$a = array();$i=0;
+//while(1)
+//{
+//	$a[] = new ct1();
+//	echo memory_get_usage(1),'----',$i++,"\n";
+//	if ($i == 400) break;
 //}
