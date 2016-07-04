@@ -7,6 +7,20 @@
  * Time: 11:46
  */
 //include 'php/CoThread.php';
+function a()
+{
+	b();
+}
+function b()
+{
+	CoThread::suspend();
+}
+function run()
+{
+	echo 123;
+	a();
+	echo 456;
+}
+$a = new \CoThread();
 
-
-new \CoThread(function(){});
+$a->start();

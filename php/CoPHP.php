@@ -7,7 +7,7 @@
  * Date: 2016/6/13
  * Time: 19:07
  */
-abstract class CoThread
+class CoThread
 {
 
 	const STATUS_NEW = 0;
@@ -20,6 +20,5 @@ abstract class CoThread
 	public static function suspend(){}
 	public function start(){}
 	public function resume(){}
-	protected abstract  function run();
 
 }
