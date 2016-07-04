@@ -17,7 +17,7 @@ abstract class CoThread
 	const STATUS_DEAD = 4;
 
 	public $status = 0;
-	protected function suspend(){}
+	public static function suspend(){}
 	public function start(){}
 	public function resume(){}
 	protected abstract  function run();
