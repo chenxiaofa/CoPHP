@@ -1,21 +1,42 @@
 <?php
-$br = (php_sapi_name() == "cli")? "":"<br>";
+class a
+{
+	function a()
+	{
+		CoThread::suspend();
+		(new b())->b();
+	}
+}
+class b
+{
+	function b()
+	{
+		CoThread::suspend();
+		(new cc())->c();
+	}
+}
 
-if(!extension_loaded('cophp')) {
-	dl('cophp.' . PHP_SHLIB_SUFFIX);
+class cc
+{
+	function c()
+	{
+		CoThread::suspend();
+		(new d())->d();
+	}
 }
-$module = 'cophp';
-$functions = get_extension_funcs($module);
-echo "Functions available in the test extension:$br\n";
-foreach($functions as $func) {
-    echo $func."$br\n";
+
+class d
+{
+	function d()
+	{
+		CoThread::suspend();
+		(new e())->e();
+	}
 }
-echo "$br\n";
-$function = 'confirm_' . $module . '_compiled';
-if (extension_loaded($module)) {
-	$str = $function($module);
-} else {
-	$str = "Module $module is not compiled into PHP";
+class e
+{
+	function e()
+	{
+		CoThread::suspend();
+	}
 }
-echo "$str\n";
-?>

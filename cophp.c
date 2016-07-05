@@ -36,6 +36,23 @@ zend_execute_data *cothread_execute_data;
 zend_execute_data *main_execute_data;
 zend_string *run_function_name; 
 cothread_context *current_cothread_context = NULL;
+static void *cache_handler = NULL;
+enum COTHREAD_STATUS{
+	COTHREAD_MAIN,
+	COTHREAD_RUNNING
+};
+static char cothread_status = 0;
+
+void ZEND_FASTCALL COTHREAD_SUSPEND_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	zend_op *next_op = (zend_op*)OPLINE;
+	next_op->handler = cache_handler;
+	SAVE_OPLINE();
+	cache_handler = NULL;
+	OPLINE = NULL;
+	return;
+}
+
 
 
 void zend_always_inline cothread_destory_context(cothread_context *ctx)
@@ -83,17 +100,11 @@ static zend_always_inline zend_vm_stack cothread_vm_stack_new_page() {
 }
 
 
-static zend_always_inline void cothread_init_context(zend_object *object,cothread_context *context)
+static zend_always_inline void cothread_init_context(zend_object *object,cothread_context *context,zend_function *run_func)
 {
 
 	context->stack = cothread_vm_stack_new_page();
- 	ZVAL_NULL(&context->retval);
-
-	zval *fz = zend_hash_find(EG(function_table),run_function_name);
-
-	zend_function *run_func = (zend_function*)fz->value.ptr;
-	
-	zend_execute_data *cothread_execute_data;
+ 	ZVAL_NULL(&context->retval); 
 
 
 	zend_vm_stack orig_vm_stack = EG(vm_stack);
@@ -109,16 +120,20 @@ static zend_always_inline void cothread_init_context(zend_object *object,cothrea
 	context->execute_data = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_CODE,
 		(zend_function*)&run_func->op_array, 
 		0,
-		object->ce,
-		object
+		run_func->op_array.scope,
+		NULL
 	);
+
+	zend_execute_data *orig_ex = EG(current_execute_data);
+	
 	
 	context->execute_data->symbol_table = zend_rebuild_symbol_table();
 	i_init_execute_data(context->execute_data, &run_func->op_array, &context->retval);
 
+	EG(current_execute_data) = orig_ex;
 
 
-	context->stack      = EG(vm_stack);
+	context->stack      = EG(vm_stack); 
 	context->stack->top = EG(vm_stack_top);
 	context->stack->end = EG(vm_stack_end);
 	
@@ -130,36 +145,60 @@ static zend_always_inline void cothread_init_context(zend_object *object,cothrea
 
 }
 
+
+
 ZEND_METHOD(cothread,__construct)
 {
 
+	zval *callback = NULL;
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE) { 
+		return;
+	}
 	
+	zend_fcall_info_cache fci_cache;
+	zend_string *callable_name;
+	char *error = NULL;
+		if (!zend_is_callable_ex(callback,NULL,IS_CALLABLE_CHECK_SILENT,&callable_name,&fci_cache,&error)){
+			if (error) {
+				zend_error(E_ERROR, "Invalid callback %s, %s", ZSTR_VAL(callable_name), error);
+				efree(error);
+			}
+			if (callable_name) {
+				zend_string_release(callable_name);
+			}
+			RETURN_FALSE;
+		} else if (error) {
+			/* Capitalize the first latter of the error message */
+			if (error[0] >= 'a' && error[0] <= 'z') {
+				error[0] += ('A' - 'a');
+			}
+			zend_error(E_DEPRECATED, "%s", error);
+			efree(error);
+		}
+		zend_string_release(callable_name);
+	
+	//php_printf("callback=%ld\n",callback);
+	//php_printf("callback function_name=%s\n",(char*)fci_cache.function_handler->common.function_name->val);
+
 	//创建cothread执行上下文
 	cothread_context *context = (cothread_context *)emalloc(sizeof(cothread_context));
 	zend_update_property_long(cothread_ce ,getThis(),"context",7,(zend_long)context); 
-	cothread_init_context(Z_OBJ_P(getThis()),context);
-
+	zend_update_property(cothread_ce ,getThis(),"callable",8,callback); 
+	cothread_init_context(Z_OBJ_P(getThis()),context,fci_cache.function_handler);
 	
-	php_printf("created cothread context:%ld\n",context);
-	php_printf("OBJ=%ld\n",Z_OBJ_P(getThis()));
 
-/*
-	zval *callback = NULL;
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE) {
-		return;
-	}
+//	php_printf("created cothread context:%ld\n",context);
+//	php_printf("OBJ=%ld\n",Z_OBJ_P(getThis()));
 
-	php_printf("callback=%ld\n",callback);
-*/
 
 }
 
 ZEND_METHOD(cothread,__destruct)
 {
-	php_printf("__destruct\n");
+	//php_printf("__destruct\n");
 	zval rv; 
 	zval *res = zend_read_property(cothread_ce,getThis(),"context",7,1,&rv);
-	//cothread_destory_context((cothread_context *)res->value.lval);
+	cothread_destory_context((cothread_context *)res->value.lval);
 }
 
 zend_always_inline cothread_context* current_context(zval *this)
@@ -177,6 +216,17 @@ ZEND_METHOD(cothread,suspend)
 { 
 	//php_printf("current_execute_data:%ld\n",EG(current_execute_data));
 	//LONGJMP(*EG(bailout), SUCCESS);
+
+	if (current_cothread_context==NULL)
+	{
+		RETVAL_NULL();
+	}
+	
+	zend_op *next_op = (zend_op*)(OPLINE+1);
+	cache_handler = (void*)next_op->handler;
+	next_op->handler = COTHREAD_SUSPEND_HANDLER;
+
+
 }
 
 ZEND_METHOD(cothread,start)
@@ -202,12 +252,13 @@ ZEND_METHOD(cothread,start)
 	EG(vm_stack_top) = context->stack->top;
 	EG(vm_stack_end) = context->stack->end; 
  
- php_printf("vm_stack:%ld\n",context->stack); 
- php_printf("context->execute_data:%ld\n",context->execute_data); 
- php_printf("context->execute_data->This:%ld\n",&(context->execute_data->This)); 
- php_printf("Z_OBJ_P(context->execute_data->This):%ld\n",Z_OBJ_P(&(context->execute_data->This))); 
- php_printf("context->execute_data->called_scope:%ld\n",context->execute_data->called_scope); 
+ //php_printf("vm_stack:%ld\n",context->stack); 
+ //php_printf("context->execute_data:%ld\n",context->execute_data); 
+ //php_printf("context->execute_data->This:%ld\n",&(context->execute_data->This)); 
+ //php_printf("Z_OBJ_P(context->execute_data->This):%ld\n",Z_OBJ_P(&(context->execute_data->This))); 
+ //php_printf("context->execute_data->called_scope:%ld\n",context->execute_data->called_scope); 
 
+	current_cothread_context = context;
 	ZVAL_NULL(&ret);
 	zend_try {
 		zend_execute_ex(context->execute_data);
@@ -303,6 +354,7 @@ PHP_MINIT_FUNCTION(cophp)
 	
     zend_declare_property_long(cothread_ce, "status", strlen("status"),0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(cothread_ce, "context", strlen("context"),0, ZEND_ACC_PRIVATE TSRMLS_CC);
+    zend_declare_property_long(cothread_ce, "callable", strlen("callable"),0, ZEND_ACC_PRIVATE TSRMLS_CC);
 
 	
 	
