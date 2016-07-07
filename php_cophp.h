@@ -136,19 +136,20 @@ static zend_always_inline void i_init_execute_data(zend_execute_data *execute_da
 
 struct _cothread_context{
 	/* CoThread instance */
-	zval* This;
+	zend_object* this_obj;
 	
 	/* The suspended execution context. */
 	zend_execute_data *execute_data;
-
+	
+	zend_execute_data *top_execute_data;
 	/* The separate stack used by cothread */
 	zend_vm_stack stack;
 
 
 	/* Return value */
-	zval retval;
+	//zval retval;
 
-
+	char cothread_status;
 	
 	/* Variable to put sent value into */
 	//zval *send_target;

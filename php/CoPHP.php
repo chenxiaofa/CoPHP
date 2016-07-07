@@ -9,15 +9,17 @@
  */
 class CoThread
 {
-
-	const STATUS_NEW = 0;
-	const STATUS_RUNNABLE = 1;
-	const STATUS_RUNNING = 2;
-	const STATUS_SUSPEND = 3;
-	const STATUS_DEAD = 4;
+	const STATUS_SUSPEND = 0;
+	const STATUS_RUNNING = 1;
+	const STATUS_DEAD = 2;
 
 	public $status = 0;
 	public static function suspend(){}
+
+	/**
+	 * @return static
+	 */
+	public static function get_current_cothread(){}
 	public function start(){}
 	public function resume(){}
 
