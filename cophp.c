@@ -44,7 +44,33 @@ enum COTHREAD_STATUS{
 	COTHREAD_IN_MAIN,
 	COTHREAD_IN_COTHREAD
 };
-static char cothread_status = COTHREAD_STATUS_SUSPEND;
+
+/* for Backup executor globals */
+static zend_execute_data *original_execute_data;
+static zend_class_entry *original_scope;
+static zend_vm_stack original_stack;
+
+
+void zend_always_inline cothread_backup_executor()
+{
+	/* Backup executor globals */
+	original_execute_data = EG(current_execute_data);
+	original_scope = EG(scope);
+	original_stack = EG(vm_stack);
+	original_stack->top = EG(vm_stack_top);
+
+}
+
+void zend_always_inline cothread_restore_executor()
+{
+	/* Restore executor globals */
+	EG(current_execute_data) = original_execute_data;
+	EG(scope) = original_scope;
+	EG(vm_stack_top) = original_stack->top;
+	EG(vm_stack_end) = original_stack->end;
+	EG(vm_stack) = original_stack;
+}
+
 
 void ZEND_FASTCALL COTHREAD_SUSPEND_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
@@ -60,30 +86,9 @@ void ZEND_FASTCALL COTHREAD_SUSPEND_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 
 //typedef void (ZEND_FASTCALL *opcode_handler_t) (ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
 
-
-
-void zend_always_inline cothread_destory_context(cothread_context *ctx)
+void zend_always_inline cothread_free_vm_stack_call_frame(zend_execute_data *ex)
 {
-	//php_printf("cothread_destory_context(ctx=%h)",ctx);
-	ctx->execute_data = NULL;
-
-	/* Backup executor globals */
-	zend_execute_data *original_execute_data = EG(current_execute_data);
-	//zend_op *original_opline = OPLINE;
-	zend_class_entry *original_scope = EG(scope);
-	zend_vm_stack original_stack = EG(vm_stack);
-	original_stack->top = EG(vm_stack_top);
-	
-	/* Set executor globals */
-
-	EG(vm_stack_top) = ctx->stack->top;
-	EG(vm_stack_end) = ctx->stack->end;
-	EG(vm_stack) = ctx->stack;
-
-	zend_execute_data *ex = ctx->execute_data?ctx->execute_data:ctx->top_execute_data;
-
-	//efree(ctx->top_execute_data->symbol_table);
-	
+		
 	while(ex)
 	{ 
 		/*
@@ -114,76 +119,55 @@ void zend_always_inline cothread_destory_context(cothread_context *ctx)
 			}
 		}
 		*/
-
-		
-		
 		zend_vm_stack_free_call_frame(ex);
 		ex = ex->prev_execute_data;
 	}
-	//php_printf("free_vm_stack done\n");
-	zend_vm_stack_destroy();
-
-	
-	/* Restore executor globals */
-	EG(current_execute_data) = original_execute_data;
-	EG(scope) = original_scope;
-	EG(vm_stack_top) = original_stack->top;
-	EG(vm_stack_end) = original_stack->end;
-	EG(vm_stack) = original_stack;
-	//OPLINE = original_opline;
-	
-	efree(ctx);
 }
 
 
-
-/* CoPHP class entry
-
-*/
-zend_class_entry *cothread_ce;
-
-
-/**  CoPHP Method
-*/
-
-static zend_always_inline zend_vm_stack cothread_vm_stack_new_page() {
-	zend_vm_stack page = (zend_vm_stack)emalloc(COTHREAD_VM_STACK_INIT_SIZE);
-	page->top = ZEND_VM_STACK_ELEMETS(page);
-	page->end = (zval*)((char*)page + COTHREAD_VM_STACK_INIT_SIZE);
-	page->prev = NULL;
-	return page;
-}
-
-
-static zend_always_inline void cothread_init_context(zend_object *object,cothread_context *context,zend_function *run_func)
+void zend_always_inline cothread_vm_stack_reset(zend_vm_stack stack)
 {
+	while (stack->prev != NULL) {
+		zend_vm_stack p = stack->prev;
+		efree(stack);
+		stack = p;
+	}
+}
 
-	context->stack = cothread_vm_stack_new_page();
- 	//ZVAL_NULL(&context->retval); 
 
-	context->this_obj = object;
+
+
+
+void zend_always_inline cothread_build_execute_data(cothread_context *ctx)
+{
+	cothread_backup_executor();
 	
-	zend_vm_stack orig_vm_stack = EG(vm_stack);
-	zval *orig_vm_top = EG(vm_stack_top);
-	zval *orig_vm_end =	EG(vm_stack_end);
 
-	EG(vm_stack)	 = context->stack;
-	EG(vm_stack_top) = context->stack->top;
-	EG(vm_stack_end) = context->stack->end; 
+	ctx->cothread_status = COTHREAD_STATUS_SUSPEND;
+
+
+	EG(vm_stack)	 = ctx->stack;
+	EG(vm_stack_top) = ctx->stack->top;
+	EG(vm_stack_end) = ctx->stack->end; 
  
+	zend_execute_data *ex = ctx->execute_data?ctx->execute_data:ctx->top_execute_data;
+	
+	cothread_free_vm_stack_call_frame(ex);
+	 
+	cothread_vm_stack_reset(ctx->stack);
 
 	 
-	context->top_execute_data = context->execute_data = zend_vm_stack_push_call_frame(run_func->common.fn_flags|ZEND_CALL_TOP_FUNCTION, 
-		(zend_function*)&run_func->op_array, 
+	ctx->top_execute_data = ctx->execute_data = zend_vm_stack_push_call_frame(ctx->func->common.fn_flags|ZEND_CALL_TOP_FUNCTION, 
+		(zend_function*)&ctx->func->op_array, 
 		0,
-		run_func->op_array.scope,
+		ctx->func->op_array.scope,
 		NULL
 	);
 
-	zend_execute_data *orig_ex = EG(current_execute_data);
+
 	
 	
-	context->execute_data->symbol_table =  NULL;//zend_rebuild_symbol_table();
+	ctx->execute_data->symbol_table =  NULL;//zend_rebuild_symbol_table();
 
 	/*
     HashTable *symbol_table =  emalloc(sizeof(zend_array));
@@ -206,32 +190,92 @@ static zend_always_inline void cothread_init_context(zend_object *object,cothrea
 	context->execute_data->symbol_table = symbol_table;
 
 	*/
-	i_init_execute_data(context->execute_data, &run_func->op_array, NULL);
-
-	EG(current_execute_data) = orig_ex;
+	i_init_execute_data(ctx->execute_data, &ctx->func->op_array, NULL);
 
 
-	context->stack      = EG(vm_stack); 
-	context->stack->top = EG(vm_stack_top);
-	context->stack->end = EG(vm_stack_end);
-	
-	EG(vm_stack)	 = orig_vm_stack;
-	EG(vm_stack_top) = orig_vm_top;
-	EG(vm_stack_end) = orig_vm_end;
 
+
+	ctx->stack      = EG(vm_stack); 
+	ctx->stack->top = EG(vm_stack_top);
+	ctx->stack->end = EG(vm_stack_end);
 	
 
+	cothread_restore_executor();
+	
+}
+
+
+
+
+void zend_always_inline cothread_destory_context(cothread_context *ctx)
+{
+	//php_printf("cothread_destory_context(ctx=%X)",ctx);
+
+	cothread_backup_executor();
+	
+	/* Set executor globals */
+
+	EG(vm_stack_top) = ctx->stack->top;
+	EG(vm_stack_end) = ctx->stack->end;
+	EG(vm_stack) = ctx->stack;
+
+	zend_execute_data *ex = ctx->execute_data?ctx->execute_data:ctx->top_execute_data;
+	cothread_free_vm_stack_call_frame(ex);
+
+	//efree(ctx->top_execute_data->symbol_table);
+
+	//php_printf("free_vm_stack done\n");
+	zend_vm_stack_destroy();
+
+	efree(ctx);
+
+	cothread_restore_executor();
+	
+	
+	
+}
+
+
+
+/* CoPHP class entry
+
+*/
+zend_class_entry *cothread_ce;
+
+
+/**  CoPHP Method
+*/
+
+static zend_always_inline zend_vm_stack cothread_vm_stack_new_page() {
+	zend_vm_stack page = (zend_vm_stack)emalloc(COTHREAD_VM_STACK_INIT_SIZE);
+	page->top = ZEND_VM_STACK_ELEMETS(page);
+	page->end = (zval*)((char*)page + COTHREAD_VM_STACK_INIT_SIZE);
+	page->prev = NULL;
+	return page;
+}
+
+
+static zend_always_inline void cothread_init_context(zend_object *object,cothread_context *ctx,zend_function *run_func)
+{
+
+	ctx->stack = cothread_vm_stack_new_page();
+	ctx->cothread_status = COTHREAD_STATUS_SUSPEND; 
+
+	ctx->top_execute_data = ctx->execute_data = NULL;
+
+	ctx->this_obj = object;
+	
+	ctx->func = run_func;
+
+	cothread_build_execute_data(ctx);
 }
 
 void resume_cothread()
 {
 
 	/* Backup executor globals */
-	zend_execute_data *original_execute_data = EG(current_execute_data);
-	zend_class_entry *original_scope = EG(scope);
-	zend_vm_stack original_stack = EG(vm_stack);
-	original_stack->top = EG(vm_stack_top);
-
+	cothread_backup_executor();
+	
 	/* Set executor globals */
 	EG(current_execute_data) = current_cothread_context->execute_data;
 	EG(scope) = current_cothread_context->execute_data->func->common.scope;
@@ -270,13 +314,9 @@ void resume_cothread()
 	current_cothread_context->stack = EG(vm_stack);
 	current_cothread_context->stack->top = EG(vm_stack_top);
 
-	/* Restore executor globals */
-	EG(current_execute_data) = original_execute_data;
-	EG(scope) = original_scope;
-	EG(vm_stack_top) = original_stack->top;
-	EG(vm_stack_end) = original_stack->end;
-	EG(vm_stack) = original_stack;
 
+	cothread_restore_executor();
+	
 	current_cothread_context = NULL;
 
 
@@ -364,6 +404,7 @@ ZEND_METHOD(cothread,suspend)
 
 }
 
+/*
 ZEND_METHOD(cothread,start)
 {
 
@@ -381,6 +422,26 @@ ZEND_METHOD(cothread,start)
 	
 	
 }
+*/
+
+ZEND_METHOD(cothread,reset)
+{
+	if (current_cothread_context != NULL )
+	{
+		RETURN_NULL();
+	}
+	
+	cothread_context * ctx = current_context(getThis());
+	
+	if (ctx->cothread_status != COTHREAD_STATUS_DEAD)
+	{
+		RETURN_NULL();
+	}
+
+	cothread_build_execute_data(ctx);
+	
+}
+
 
 
 ZEND_METHOD(cothread,get_current_cothread)
@@ -403,8 +464,17 @@ ZEND_METHOD(cothread,resume)
 	{
 		RETURN_NULL();
 	}
+
 	
-	cothread_context * ctx = current_cothread_context = current_context(getThis());
+	
+	cothread_context * ctx = current_context(getThis());
+
+	
+	if (ctx->cothread_status == COTHREAD_STATUS_DEAD)
+	{
+		RETURN_NULL();
+	}	
+	current_cothread_context = ctx;
 	resume_cothread();
 	zend_update_property_long(cothread_ce,getThis(),"status",6,ctx->cothread_status);
 }
@@ -420,8 +490,9 @@ static zend_function_entry cothread_method[] = {
 	ZEND_ME(cothread,  	get_current_cothread		,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(cothread,	__construct					,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_CTOR|ZEND_ACC_FINAL)
 	ZEND_ME(cothread,	__destruct					,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_DTOR|ZEND_ACC_FINAL)
-	ZEND_ME(cothread,	start 						,  NULL,   ZEND_ACC_PUBLIC)
+	/*ZEND_ME(cothread,	start 						,  NULL,   ZEND_ACC_PUBLIC)*/
 	ZEND_ME(cothread,	resume						,  NULL,   ZEND_ACC_PUBLIC)
+	ZEND_ME(cothread,	reset						,  NULL,   ZEND_ACC_PUBLIC)
 
     { NULL, NULL, NULL }
 };

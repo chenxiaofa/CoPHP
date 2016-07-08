@@ -22,5 +22,6 @@ class CoThread
 	public static function get_current_cothread(){}
 	public function start(){}
 	public function resume(){}
+	public function reset(){}
 
 }

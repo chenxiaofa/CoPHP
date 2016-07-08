@@ -145,7 +145,7 @@ struct _cothread_context{
 	/* The separate stack used by cothread */
 	zend_vm_stack stack;
 
-
+	zend_function *func;
 	/* Return value */
 	//zval retval;
 
