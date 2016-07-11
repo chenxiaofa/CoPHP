@@ -450,9 +450,9 @@ ZEND_METHOD(cothread,get_current_cothread)
 	{
 		RETURN_NULL();
 	}
-	GC_REFCOUNT(current_cothread_context->this_obj)++;
-	RETURN_OBJ(current_cothread_context->this_obj);
-	//RETURN_NULL();
+	ZVAL_OBJ(return_value, current_cothread_context->this_obj);
+	Z_TRY_ADDREF_P(return_value);
+	return;
 }
 
 
@@ -488,7 +488,7 @@ static zend_function_entry cothread_method[] = {
 
 	ZEND_ME(cothread,  	suspend						,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(cothread,  	get_current_cothread		,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-	ZEND_ME(cothread,	__construct					,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_CTOR|ZEND_ACC_FINAL)
+	ZEND_ME(cothread,	__construct					,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
 	ZEND_ME(cothread,	__destruct					,  NULL,   ZEND_ACC_PUBLIC|ZEND_ACC_DTOR|ZEND_ACC_FINAL)
 	/*ZEND_ME(cothread,	start 						,  NULL,   ZEND_ACC_PUBLIC)*/
 	ZEND_ME(cothread,	resume						,  NULL,   ZEND_ACC_PUBLIC)
