@@ -14,7 +14,6 @@ $serv->on('Request',
 $tick = function()
 {
 	Dispatcher::roll();
-
 };
 
 

@@ -34,7 +34,9 @@ class Dispatcher
 
 	public static function add_http_request($request,$response)
 	{
+		static $count = 0;
 		self::$http_requests[] = [$request,$response];
+		echo "add_http_request count = ".++$count."\n";
 	}
 
 
