@@ -132,6 +132,10 @@ static zend_always_inline void i_init_execute_data(zend_execute_data *execute_da
 }
 /* }}} */
 
+struct _cothread_globals{
+
+}
+
 
 
 struct _cothread_context{
@@ -145,7 +149,7 @@ struct _cothread_context{
 	/* The separate stack used by cothread */
 	zend_vm_stack stack;
 
-	zend_function *func;
+	zend_fcall_info_cache *fci_cache;
 	/* Return value */
 	//zval retval;
 

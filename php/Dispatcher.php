@@ -9,13 +9,13 @@
  */
 class Dispatcher
 {
-	const MAX_THREAD_NUM = 5;
+	const MAX_THREAD_NUM = 50;
 	private static $threads = [];
 	public static $free_threads = [];
 	private static $high_threads = [];
 	private static $hangup_thread = [];
 	public static $http_requests = [];
-	private static $async_wait_thread = [];
+
 	private function __construct()
 	{
 
@@ -29,14 +29,15 @@ class Dispatcher
 			self::$free_threads[] = $thread;
 			self::$threads[] = $thread;
 		}
+
 	}
 
 
 	public static function add_http_request($request,$response)
 	{
-		static $count = 0;
+//		static $count = 0;
 		self::$http_requests[] = [$request,$response];
-		echo "add_http_request count = ".++$count."\n";
+//		echo "add_http_request count = ".++$count."\n";
 	}
 
 
@@ -57,6 +58,7 @@ class Dispatcher
 			{
 				self::$free_threads[] = $thread;
 			}
+			return;
 		}
 		while(!empty(self::$hangup_thread))
 		{
@@ -66,6 +68,7 @@ class Dispatcher
 			{
 				self::$free_threads[] = $thread;
 			}
+			return;
 		}
 		while(!empty(self::$free_threads) && !empty(self::$http_requests))
 		{

@@ -1,59 +1,43 @@
 <?php
-class mCothread extends CoThread
-{
-	public $request = null;
-	public $response = null;
-	public $sql = '';
-	public function reset1($request,$response)
-	{
-		$this->request = $request;
-		$this->response = $response;
-	}
-
-	/**
-	 * @param $sql
-	 */
-	public function query($sql)
-	{
-		$this->sql = $sql;
-	}
-}
-
-$a = new mCothread(
-		function()
-		{
-			$self = mCothread::get_current_cothread();
-			echo "do_request\n";
-			run();
-		}
-);
+/**
+ * 珠海魅族科技有限公司
+ * Copyright (c) 2012 - 2013 meizu.com ZhuHai Inc. (http://www.meizu.com)
+ * User: 陈晓发
+ * Date: 2016/7/11
+ * Time: 17:28
+ */
 
 function run()
 {
-	a();
+	echo "123";
 }
-function a()
+class WebThread extends CoThread
 {
-	b();
+	/** 构造函数
+	 * @param null $callback
+	 */
+	public function __construct($callback=null)
+	{
+//		parent::__construct([$this,'run']);
+//		parent::__construct('run');
+		parent::__construct(
+			function()
+			{
+				print_r(CoThread::yield());
+			}
+		);
+	}
+
+	public function run()
+	{
+		debug_zval_dump($this);
+	}
+
+
 }
-function b()
-{
-	c();
-}
-function c()
-{
-	echo 123;
-	CoThread::suspend();
-	echo 789;
-}
+
 while(1)
 {
-
+		$a = new WebThread();
 		$a->resume();
-	print_r($a);
-		echo "\n";
-		if ($a->status == $a::STATUS_DEAD)
-		{
-			$a->reset();
-		}
 }

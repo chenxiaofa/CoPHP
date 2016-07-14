@@ -11,14 +11,14 @@ class CoThread
 	const STATUS_SUSPEND = 0;
 	const STATUS_RUNNING = 1;
 	const STATUS_DEAD = 2;
-	public function __construct(){}
+	public function __construct($callback){}
 	public $status = 0;
-	public static function suspend(){}
+	public static function yield(){}
 
 	/**
 	 * @return static
 	 */
-	public static function get_current_cothread(){}
+	public static function running(){}
 	public function resume(){}
 	public function reset(){}
 

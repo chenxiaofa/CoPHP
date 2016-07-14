@@ -19,15 +19,10 @@ $tick = function()
 
 
 $serv->on('WorkerStart',function()use($tick){
+	Dispatcher::init();
 	swoole_timer_tick(1, $tick);
-	swoole_timer_tick(1000, function(){
-		echo count(Dispatcher::$free_threads)."\n";
-		echo count(Dispatcher::$http_requests)."\n";
-	});
-
 });
 
-Dispatcher::init();
 $serv->set(array(
 		'worker_num' => 1,    //worker process num
 ));

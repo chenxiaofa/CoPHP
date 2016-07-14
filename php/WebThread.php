@@ -16,21 +16,25 @@ class WebThread extends CoThread
 	public static function mysql_query($sql , $db = null)
 	{
 
-		$self = self::get_current_cothread();
+		$self = self::running();
 		if ($db == null)
 		{
 			$db = $self->get_db();
 		}
-		$result = null;
 
+		$result = null;
+		$s = microtime(1);
+		$e = 0;
 		$db->query($sql,
-			function($db,$r)use(&$result,$self)
+			function($db,$r)use(&$result,$s,$self)
 			{
+//				echo "query:".(microtime(1) - $s)."\n";
 				$result = $r;
 				Dispatcher::add_high_thread($self);
 			}
 		);
-		self::suspend();
+		self::yield();
+//		echo "query cothread resume:".(microtime(1) - $s)."\n";
 		return $result;
 	}
 
@@ -42,11 +46,9 @@ class WebThread extends CoThread
 
 	public function run()
 	{
-		/** @var self $self */
-		$self = self::get_current_cothread();
 
 		$result = WebThread::mysql_query('select * from mz_member where mid=149;');
-		$self->response->end(json_encode($result));
+		print_r($result);
 //		print_r($db);
 	}
 
@@ -74,20 +76,23 @@ class WebThread extends CoThread
 				'password' => 'mysqluser',
 				'database' => 'meiyou',
 		);
-		$thread = self::get_current_cothread();
-		$this->db->connect($server,function()use($thread){
-			Dispatcher::add_high_thread($thread);
+		$thread = $this;
+		$this->db->connect($server,function($db,$r)use($thread){
+			if ($r)
+			{
+				$db->query('set names utf8;',function()use($thread){
+					Dispatcher::add_high_thread($thread);
+				});
+			}
 		});
-		self::suspend();
+		self::yield();
 		return $this->db;
 
 	}
 
 	public function resume()
 	{
-
 		parent::resume();
-
 		if ($this->status === self::STATUS_DEAD)
 		{
 			$this->_release();
@@ -101,6 +106,8 @@ class WebThread extends CoThread
 //			release_mysql($this->db);
 //			$this->db = NULL;
 //		}
+		$this->response = null;
+		$this->request = null;
 
 	}
 }
