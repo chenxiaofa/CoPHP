@@ -22,7 +22,7 @@ $tick = function()
 
 $serv->on('WorkerStart',function()use($tick){
 	Dispatcher::init();
-	swoole_timer_tick(1000, $tick);
+//	swoole_timer_tick(1000, $tick);
 });
 
 $serv->set(array(

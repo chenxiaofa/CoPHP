@@ -53,11 +53,16 @@ class WebThread extends CoThread
 
 	public function run()
 	{
+		$thread = $this;
+		swoole_timer_after(500, function()use(&$thread){
+			Dispatcher::run_co_thread($thread);
+		});
 
-		$result = WebThread::mysql_query('select * from mz_member where mid=149;');
+		self::yield();
+
 //		print_r($_GET);
 //		print_r($db);
-		$this->response->end(json_encode($result));
+		$this->response->end('11');
 	}
 
 	public function reset($request,$response)
@@ -118,6 +123,7 @@ class WebThread extends CoThread
 		$_SERVER = &$this->_SERVER;
 		$_FILES = &$this->_FILES;
 
+//		debug_zval_dump($this->response->status());
 		parent::resume();
 		if ($this->status === self::STATUS_DEAD)
 		{
