@@ -11,8 +11,14 @@ function run()
 {
 	echo "123";
 }
-class WebThread extends CoThread
+$_POST['123'] = 123;
+class WebThread1 extends CoThread
 {
+	private $_GET=[];
+	private $_POST=[];
+	private $_COOKIE=[];
+	private $_SERVER=[];
+	private $_FILES=[];
 	/** 构造函数
 	 * @param null $callback
 	 */
@@ -23,21 +29,63 @@ class WebThread extends CoThread
 		parent::__construct(
 			function()
 			{
-				print_r(CoThread::yield());
+				global $yy;
+//				echo 123;exit;
+				
+				$_POST = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+				echo "CoThread:";
+				debug_zval_dump($_POST);
+				echo "\n";
+				$yy[] =$_POST;
+				self::yield();
+
+				echo "CoThread:";
+				debug_zval_dump($_POST);
+				echo "\n";
 			}
 		);
 	}
 
-	public function run()
+
+	public function resume()
 	{
-		debug_zval_dump($this);
+		$_TMP_GET = &$_GET;
+		$_TMP_POST = &$_POST;
+		$_TMP_COOKIE = &$_COOKIE;
+		$_TMP_SERVER = &$_SERVER;
+		$_TMP_FILES = &$_FILES;
+
+		$_POST = &$this->_POST;
+		$_GET = &$this->_GET;
+		$_COOKIE = &$this->_COOKIE;
+		$_SERVER = &$this->_SERVER;
+		$_FILES = &$this->_FILES;
+
+		parent::resume();
+
+		$this->_POST = &$_POST;
+		$this->_GET = &$_GET;
+		$this->_COOKIE = &$_COOKIE;
+		$this->_SERVER = &$_SERVER;
+		$this->_FILES = &$_FILES;
+
+		$_GET = &$_TMP_GET;
+		$_POST = &$_TMP_POST;
+		$_COOKIE = &$_TMP_COOKIE;
+		$_SERVER = &$_TMP_SERVER;
+		$_FILES = &$_TMP_FILES;
 	}
-
-
 }
-
+//print_r($_COOKIE);
 while(1)
 {
-		$a = new WebThread();
-		$a->resume();
+	echo "Main:";
+	debug_zval_dump($_POST);
+	$a = new WebThread1();
+	$a->resume();
+//	echo "Main:";
+	debug_zval_dump($_COOKIE);
+	$a->resume();
+	echo memory_get_usage(1),"\n";
+
 }

@@ -40,6 +40,11 @@ extern zend_module_entry cophp_module_entry;
 #include "TSRM.h"
 #endif
 
+#define Z_COTHREAD_CONTEXT_P(z) ((cothread_context *)(zend_read_property(cothread_ce,(z),"context",7,1,NULL)->value.lval))
+#define COTHREAD_SYMBOL_TABLE(ctx) (ctx)->symbol_table
+#define COTHREAD_SYMBOL_TABLE_P(ctx) &(COTHREAD_SYMBOL_TABLE(ctx))
+#define CO_G(v) cothread_globals.v
+#define CURRCO(v) CO_G(context)->v
 
 static zend_always_inline void i_init_execute_data(zend_execute_data *execute_data, zend_op_array *op_array, zval *return_value) /* {{{ */
 {
@@ -132,9 +137,7 @@ static zend_always_inline void i_init_execute_data(zend_execute_data *execute_da
 }
 /* }}} */
 
-struct _cothread_globals{
 
-}
 
 
 
@@ -150,21 +153,26 @@ struct _cothread_context{
 	zend_vm_stack stack;
 
 	zend_fcall_info_cache *fci_cache;
-	/* Return value */
-	//zval retval;
 
-	char cothread_status;
+
+	char status;
 	
-	/* Variable to put sent value into */
-	//zval *send_target;
 
-
-	/* Fake execute_data for stacktraces */
-	/* zend_execute_data execute_fake; */
 
 };
 
 typedef struct _cothread_context cothread_context;
+
+struct _cothread_globals{
+	cothread_context 	*context;
+	zend_execute_data 	*main_execute_data;
+	zend_class_entry 	*main_scope;
+	zend_vm_stack 		 main_stack;
+	void				*cache_handler;
+
+
+} cothread_globals;
+
 
 
 /*

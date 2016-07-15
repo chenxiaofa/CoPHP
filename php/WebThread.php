@@ -9,32 +9,39 @@
  */
 class WebThread extends CoThread
 {
+	public $flag = 0;
+
 	public $request = null;
 	public $response = null;
 	protected $db = null;
 
+
+
+	//全局变量
+	private $_GET=[];
+	private $_POST=[];
+	private $_COOKIE=[];
+	private $_SERVER=[];
+	private $_FILES=[];
+
 	public static function mysql_query($sql , $db = null)
 	{
 
-		$self = self::running();
+		$thread = self::running();
 		if ($db == null)
 		{
-			$db = $self->get_db();
+			$db = $thread->get_db();
 		}
 
 		$result = null;
-		$s = microtime(1);
-		$e = 0;
 		$db->query($sql,
-			function($db,$r)use(&$result,$s,$self)
+			function($db,$r)use(&$result,$thread)
 			{
-//				echo "query:".(microtime(1) - $s)."\n";
 				$result = $r;
-				Dispatcher::add_high_thread($self);
+				Dispatcher::run_co_thread($thread);
 			}
 		);
 		self::yield();
-//		echo "query cothread resume:".(microtime(1) - $s)."\n";
 		return $result;
 	}
 
@@ -48,14 +55,21 @@ class WebThread extends CoThread
 	{
 
 		$result = WebThread::mysql_query('select * from mz_member where mid=149;');
-		print_r($result);
+//		print_r($_GET);
 //		print_r($db);
+		$this->response->end(json_encode($result));
 	}
 
 	public function reset($request,$response)
 	{
 		$this->request = $request;
 		$this->response = $response;
+
+		$this->_POST = [];
+		$this->_GET = [];
+		$this->_COOKIE = [];
+		$this->_SERVER = [];
+		$this->_FILES = [];
 		parent::reset();
 	}
 
@@ -81,7 +95,7 @@ class WebThread extends CoThread
 			if ($r)
 			{
 				$db->query('set names utf8;',function()use($thread){
-					Dispatcher::add_high_thread($thread);
+					Dispatcher::run_co_thread($thread);
 				});
 			}
 		});
@@ -92,11 +106,36 @@ class WebThread extends CoThread
 
 	public function resume()
 	{
+		$_TMP_GET = &$_GET;
+		$_TMP_POST = &$_POST;
+		$_TMP_COOKIE = &$_COOKIE;
+		$_TMP_SERVER = &$_SERVER;
+		$_TMP_FILES = &$_FILES;
+
+		$_POST = &$this->_POST;
+		$_GET = &$this->_GET;
+		$_COOKIE = &$this->_COOKIE;
+		$_SERVER = &$this->_SERVER;
+		$_FILES = &$this->_FILES;
+
 		parent::resume();
 		if ($this->status === self::STATUS_DEAD)
 		{
 			$this->_release();
 		}
+
+		$this->_POST = &$_POST;
+		$this->_GET = &$_GET;
+		$this->_COOKIE = &$_COOKIE;
+		$this->_SERVER = &$_SERVER;
+		$this->_FILES = &$_FILES;
+
+		$_GET = &$_TMP_GET;
+		$_POST = &$_TMP_POST;
+		$_COOKIE = &$_TMP_COOKIE;
+		$_SERVER = &$_TMP_SERVER;
+		$_FILES = &$_TMP_FILES;
+
 	}
 
 	private function _release()

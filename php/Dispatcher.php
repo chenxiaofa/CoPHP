@@ -9,13 +9,11 @@
  */
 class Dispatcher
 {
-	const MAX_THREAD_NUM = 50;
+	const MAX_THREAD_NUM = 200;
+	const START_THREAD_NUM = 0;
 	private static $threads = [];
 	public static $free_threads = [];
-	private static $high_threads = [];
-	private static $hangup_thread = [];
-	public static $http_requests = [];
-
+	private static $thread_num = 0;
 	private function __construct()
 	{
 
@@ -23,62 +21,54 @@ class Dispatcher
 
 	public static function init()
 	{
-		for($i=0 ; $i< self::MAX_THREAD_NUM; $i++)
+		for($i=0 ; $i< self::START_THREAD_NUM; $i++)
 		{
-			$thread = new WebThread();
+			self::incr_thread();
+		}
+
+	}
+
+	public static function incr_thread()
+	{
+		$thread = new WebThread();
+		self::$free_threads[] = $thread;
+		self::$threads[] = $thread;
+		self::$thread_num++;
+	}
+
+	public static function run_co_thread($thread)
+	{
+		/** @var WebThread $thread */
+		if ($thread->status == $thread::STATUS_SUSPEND)
+		{
+			$thread->resume();
+		}
+		if ($thread->status == $thread::STATUS_DEAD)
+		{
 			self::$free_threads[] = $thread;
-			self::$threads[] = $thread;
 		}
-
+//		echo "run\n";
+		return;
 	}
 
-
-	public static function add_http_request($request,$response)
+	public static function handle_http_request($request,$response)
 	{
-//		static $count = 0;
-		self::$http_requests[] = [$request,$response];
-//		echo "add_http_request count = ".++$count."\n";
-	}
-
-
-	public static function add_high_thread($thread)
-	{
-		self::$high_threads[] = $thread;
-	}
-
-
-	public static function roll()
-	{
-		while(!empty(self::$high_threads))
+		while(empty(self::$free_threads))
 		{
-//			echo "high_threads\n";
-			$thread = array_shift(self::$high_threads);
-			$thread->resume();
-			if ($thread->status == $thread::STATUS_DEAD)
+			if (self::$thread_num >= self::MAX_THREAD_NUM)
 			{
-				self::$free_threads[] = $thread;
+				$response->end('busy');
+				return;
 			}
-			return;
+			self::incr_thread();
 		}
-		while(!empty(self::$hangup_thread))
-		{
-			$thread = array_shift(self::$hangup_thread);
-			$thread->resume();
-			if ($thread->status == $thread::STATUS_DEAD)
-			{
-				self::$free_threads[] = $thread;
-			}
-			return;
-		}
-		while(!empty(self::$free_threads) && !empty(self::$http_requests))
-		{
-			/** @var WebThread $thread */
-			$thread = array_pop(self::$free_threads);
-			$p = array_shift(self::$http_requests);
-			$thread->reset($p[0],$p[1]);
-			self::$hangup_thread[] = $thread;
-		}
-
-
+		/** @var WebThread $thread */
+		$thread = array_pop(self::$free_threads);
+		$thread->reset($request,$response);
+		self::run_co_thread($thread);
 	}
+
+
+
+
 }
