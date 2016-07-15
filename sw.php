@@ -1,89 +1,20 @@
 <?php
 $serv = new swoole_http_server("0.0.0.0", 9502);
 
-//$server = array(
-//		'host' => '172.16.85.30',
-//		'user' => 'mysqluser',
-//		'password' => 'mysqluser',
-//		'database' => 'meiyou',
-//);
-
-//$server = array(
-//		'host' => '10.2.70.35',
-//		'user' => 'xiaofa',
-//		'password' => 'xiaofa',
-//		'database' => 'mz_mac',
-//);
-
-//$mysql_pool = [];
-//$mysqls = [];
-
 $a = [];
 
 $serv->on('Request', function($request, $response) {
+	global $a;
 	$a[] = $response;
 });
-//
-//function get_free_mysql()
-//{
-//	global $mysql_pool;
-//	if (empty($mysql_pool))
-//	{
-//		return null;
-//	}
-//	return array_shift($mysql_pool);
-//}
-//
-//function release_mysql($m)
-//{
-//	global $mysql_pool;
-//	$mysql_pool[] = $m;
-//}
-//
-//
-//$serv->on('WorkerStart',function()use($server){
-//	for($i=0;$i<100;$i++)
-//	{
-//		(new swoole_mysql())->connect($server, function ($db, $r) {
-//			print_r($db);
-//			global $mysql_pool;
-//			if ($r === false)
-//			{
-//
-//			}
-//			else
-//			{
-////				echo "connect to mysql\n";
-//				$mysql_pool[] = $db;
-//				$db->query("set names utf8;",function(){});
-//				$db->on('Close', function($db){
-//					echo "MySQL connection is closed.\n";
-//				});
-//			}
-//		});
-//	}
-//	swoole_timer_tick(500, function(){
-////		global $mysql_pool;
-////		echo count($mysql_pool),"\n";
-//	});
-//});
-function b()
-{
-	return 121;
-}
-function a()
-{
-	b();
-	global $a;
-	while($s = array_pop($a))
-	{
-		unset($s);
-	}
-}
 
 $serv->on('WorkerStart',function()use($server){
-	swoole_timer_tick(500, function(){
-		a();
+	swoole_timer_tick(10, function(){
+		global $a;
+		while($p = array_pop($a))
+		{
+			$p->end('');
+		}
 	});
 });
 $serv->set(array(
