@@ -27,8 +27,6 @@
 
 #include "php_ini.h"
 #include "ext/standard/info.h"
-#include "Zend/zend_extensions.h"
-#include "Zend/zend_interfaces.h" /* for zend_call_method_with_* */
 
 #include "php_cophp.h"
 
@@ -103,34 +101,6 @@ void zend_always_inline cothread_free_vm_stack_call_frame(zend_execute_data *ex)
 		
 	while(ex)
 	{ 
-		/*
-		if (ctx->cothread_status != COTHREAD_STATUS_DEAD)
-		{//not finished cothread
-			zend_execute_data *execute_data = ex;
-			ex->opline = (zend_op *)(ex->func->op_array.opcodes + ex->func->op_array.last - 1);
-			php_printf("ex last op:%ld handler=%ld\n",ex->opline,ex->opline->handler);
-
-
-			EG(current_execute_data) = ex;
-			EG(scope) = ex->func->common.scope;
-
-			
-			((opcode_handler_t)(ex->opline->handler))(ex);
-		}
-		*/
-		//php_printf("free_vm_stack=%ld\n",ex);
-		//free literals
-		/*
-		if (ex->func && ex->func->op_array.last_literal > 0)
-		{
-			int i = 0;
-			for(i = 0 ; i < ex->func->op_array.last_literal; i++)
-			{
-				zval *z = (zval*)(ex->func->op_array.literals + i);
-				php_printf("free_vm_stack=%ld - zval(%ld).gc =  \n",ex,z);
-			}
-		}
-		*/
 		zend_vm_stack_free_call_frame(ex);
 		ex = ex->prev_execute_data;
 	}

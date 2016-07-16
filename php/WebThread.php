@@ -15,8 +15,8 @@ class WebThread extends CoThread
 	public $response = null;
 	protected $db = null;
 
-
-
+	protected $thread_num = 0;
+	protected $request_num = 0;
 	//全局变量
 	private $_GET=[];
 	private $_POST=[];
@@ -48,28 +48,23 @@ class WebThread extends CoThread
 	/** 构造函数 */
 	public function __construct()
 	{
+		static $n=0;
+		$this->thread_num = ++$n;
 		parent::__construct([$this,'run']);
 	}
 
 	public function run()
 	{
-		$thread = $this;
-		swoole_timer_after(500, function()use(&$thread){
-			Dispatcher::run_co_thread($thread);
-		});
+		$result  = self::mysql_query('select * from mz_member;');
 
-		self::yield();
-
-//		print_r($_GET);
-//		print_r($db);
-		$this->response->end('11');
+		$this->response->end(json_encode($result));
 	}
 
 	public function reset($request,$response)
 	{
+
 		$this->request = $request;
 		$this->response = $response;
-
 		$this->_POST = [];
 		$this->_GET = [];
 		$this->_COOKIE = [];
@@ -123,7 +118,6 @@ class WebThread extends CoThread
 		$_SERVER = &$this->_SERVER;
 		$_FILES = &$this->_FILES;
 
-//		debug_zval_dump($this->response->status());
 		parent::resume();
 		if ($this->status === self::STATUS_DEAD)
 		{
@@ -146,13 +140,14 @@ class WebThread extends CoThread
 
 	private function _release()
 	{
+
 //		if ($this->db !== NULL)
 //		{
 //			release_mysql($this->db);
 //			$this->db = NULL;
 //		}
-		$this->response = null;
-		$this->request = null;
+//		$this->response = null;
+//		$this->request = null;
 
 	}
 }

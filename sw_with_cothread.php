@@ -6,7 +6,7 @@ $serv = new swoole_http_server("0.0.0.0", 9502);
 
 $serv->on('Request',
 	function($request, $response) {
-
+		echo "fd:".$response->fd."\n";
 		Dispatcher::handle_http_request($request, $response);
 
 	}
