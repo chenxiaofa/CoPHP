@@ -77,7 +77,7 @@ class WebThread1 extends CoThread
 	}
 }
 //print_r($_COOKIE);
-while(1)
+//while(1)
 {
 	echo "Main:";
 	debug_zval_dump($_POST);
@@ -89,3 +89,5 @@ while(1)
 	echo memory_get_usage(1),"\n";
 
 }
+
+register_shutdown_function(function(){echo 123;});

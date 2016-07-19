@@ -22,7 +22,6 @@ $serv->on('WorkerStart',function()use($server){
 			$t->req = null;
 		}
 		$a = [];
-
 	});
 });
 $serv->set(array(

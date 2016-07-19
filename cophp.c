@@ -39,10 +39,6 @@ enum COTHREAD_STATUS{
 	COTHREAD_IN_COTHREAD
 };
 
-/* for Backup executor globals */
-static zend_execute_data *original_execute_data;
-static zend_class_entry *original_scope;
-static zend_vm_stack original_stack;
 
 /* 备份当前执行环境 */
 /* {{{ cothread_backup_executor 
@@ -266,7 +262,7 @@ void resume_cothread(cothread_context *ctx)
 	EG(vm_stack) = ctx->stack;
 
 
-	ctx->top_execute_data->prev_execute_data = original_execute_data;
+	ctx->top_execute_data->prev_execute_data = EG(current_execute_data);
 	ctx->status = COTHREAD_STATUS_RUNNING;
 
 

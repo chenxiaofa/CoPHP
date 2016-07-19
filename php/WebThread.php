@@ -55,7 +55,7 @@ class WebThread extends CoThread
 
 	public function run()
 	{
-		$result  = self::mysql_query('select * from mz_member;');
+		$result  = self::mysql_query('select * from mz_member limit 1,1;');
 
 		$this->response->end(json_encode($result));
 	}
@@ -85,10 +85,10 @@ class WebThread extends CoThread
 		}
 
 		$server = array(
-				'host' => '172.16.85.30',
-				'user' => 'mysqluser',
-				'password' => 'mysqluser',
-				'database' => 'meiyou',
+				'host' => '10.2.70.35',
+				'user' => 'xiaofa',
+				'password' => 'xiaofa',
+				'database' => 'mz_mac',
 		);
 		$thread = $this;
 		$this->db->connect($server,function($db,$r)use($thread){
